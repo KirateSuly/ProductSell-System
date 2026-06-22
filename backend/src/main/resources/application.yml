@@ -2,6 +2,8 @@ server:
   port: 8081
 
 spring:
+  profiles:
+    active: local
   datasource:
     url: ${DB_URL:jdbc:mysql://localhost:3306/product_sell?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&createDatabaseIfNotExist=true}
     username: ${DB_USERNAME:root}
@@ -33,7 +35,7 @@ mybatis-plus:
   mapper-locations: classpath*:/mapper/**/*.xml
 
 jwt:
-  secret: ${JWT_SECRET:your_jwt_secret_key_here}
+  secret: ${JWT_SECRET:ZGV2LWp3dC1zZWNyZXQtcGxhY2Vob2xkZXI=}
   expiration: 86400000
   remember-me-expiration: 604800000
 

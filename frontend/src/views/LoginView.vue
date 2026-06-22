@@ -330,14 +330,19 @@ function calcPosition(key, heightRatio) {
   const stage = stageRef.value
   if (!stage) return { faceX: 0, faceY: 0, bodySkew: 0 }
 
-  const { cx, cy } = calcStaticCenter(stage.getBoundingClientRect(), key, heightRatio)
+  const stageRect = stage.getBoundingClientRect()
+  const { cx, cy } = calcStaticCenter(stageRect, key, heightRatio)
   const dx = mouseX.value - cx
   const dy = mouseY.value - cy
+
+  // 倾斜用舞台相对位置（而非角色相对位置），避免角色靠左时只有鼠标到最左边才左倾的问题
+  const stageRelX = (mouseX.value - stageRect.left) / stageRect.width   // 0=舞台左边缘, 1=舞台右边缘
+  const normalizedSkew = (0.5 - stageRelX) * 2  // 左半=+1(左倾), 右半=-1(右倾)
 
   return {
     faceX: Math.max(-15, Math.min(15, dx / 20)),
     faceY: Math.max(-10, Math.min(10, dy / 30)),
-    bodySkew: Math.max(-6, Math.min(6, -dx / 120))
+    bodySkew: Math.max(-10, Math.min(12, normalizedSkew * 12))
   }
 }
 
