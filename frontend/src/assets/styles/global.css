@@ -1,0 +1,110 @@
+/* 全局样式 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #app {
+  height: 100%;
+  font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Microsoft YaHei', Arial, sans-serif;
+}
+
+/* 页面过渡动画 */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* 搜索区域 */
+.search-bar {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 16px;
+  padding: 16px;
+  background: #fff;
+  border-radius: 8px;
+}
+
+/* 操作栏 */
+.action-bar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+/* 页面容器 */
+.page-container {
+  padding: 8px;
+}
+
+/* 统计卡片 */
+.stat-card {
+  text-align: center;
+}
+.stat-card .stat-value {
+  font-size: 28px;
+  font-weight: bold;
+  color: #409eff;
+}
+.stat-card .stat-label {
+  font-size: 14px;
+  color: #909399;
+  margin-top: 8px;
+}
+
+/* ========== AI 聊天面板 Markdown 内容样式 ========== */
+.ai-chat-content h3 {
+  margin: 12px 0 6px;
+  font-size: 15px;
+  color: #303133;
+}
+.ai-chat-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0;
+  font-size: 13px;
+}
+.ai-chat-content th,
+.ai-chat-content td {
+  border: 1px solid #ebeef5;
+  padding: 6px 10px;
+  text-align: left;
+}
+.ai-chat-content th {
+  background: #f5f7fa;
+}
+.ai-chat-content ul,
+.ai-chat-content ol {
+  padding-left: 20px;
+  margin: 4px 0;
+}
+.ai-chat-content p {
+  margin: 4px 0;
+}
+.ai-chat-content strong {
+  color: #e6a23c;
+}
+.ai-chat-content code {
+  background: #f0f2f5;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 13px;
+}
+.ai-chat-content pre {
+  background: #f5f7fa;
+  padding: 10px;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+.ai-chat-content pre code {
+  background: none;
+  padding: 0;
+}

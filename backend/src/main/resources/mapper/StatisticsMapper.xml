@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.productsell.mapper.StatisticsMapper">
+
+    <!-- 概览统计 -->
+    <select id="selectOverview" resultType="map">
+        SELECT
+            (SELECT COUNT(*) FROM product WHERE status = 1) AS totalProducts,
+            (SELECT COUNT(*) FROM customer) AS totalCustomers,
+            (SELECT COUNT(*) FROM `order`
+             <where>
+                 <if test="startDate != null and startDate != ''">AND order_date &gt;= #{startDate}</if>
+                 <if test="endDate != null and endDate != ''">AND order_date &lt;= #{endDate}</if>
+             </where>
+            ) AS totalOrders,
+            (SELECT COALESCE(SUM(total_amount), 0) FROM `order`
+             WHERE order_status != 'CANCELLED'
+             <if test="startDate != null and startDate != ''">AND order_date &gt;= #{startDate}</if>
+             <if test="endDate != null and endDate != ''">AND order_date &lt;= #{endDate}</if>
+            ) AS totalRevenue
+        FROM DUAL
+    </select>
+
+    <!-- 销售趋势（按月） -->
+    <select id="selectSalesTrend" resultType="map">
+        SELECT
+            DATE_FORMAT(order_date, '%Y-%m') AS month,
+            COUNT(*) AS orderCount,
+            COALESCE(SUM(total_amount), 0) AS totalAmount
+        FROM `order`
+        WHERE order_status != 'CANCELLED'
+        <if test="startDate != null and startDate != ''">AND order_date &gt;= #{startDate}</if>
+        <if test="endDate != null and endDate != ''">AND order_date &lt;= #{endDate}</if>
+        GROUP BY DATE_FORMAT(order_date, '%Y-%m')
+        ORDER BY month ASC
+    </select>
+
+    <!-- 热销商品 Top N -->
+    <select id="selectTopProducts" resultType="map">
+        SELECT
+            oi.product_name AS productName,
+            SUM(oi.quantity) AS totalQuantity,
+            SUM(oi.subtotal) AS totalAmount
+        FROM order_item oi
+        JOIN `order` o ON oi.order_id = o.id
+        WHERE o.order_status != 'CANCELLED'
+        <if test="startDate != null and startDate != ''">AND o.order_date &gt;= #{startDate}</if>
+        <if test="endDate != null and endDate != ''">AND o.order_date &lt;= #{endDate}</if>
+        GROUP BY oi.product_id, oi.product_name
+        ORDER BY totalQuantity DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 分类销售占比 -->
+    <select id="selectCategorySales" resultType="map">
+        SELECT
+            COALESCE(p.category, '未分类') AS category,
+            SUM(oi.subtotal) AS totalAmount
+        FROM order_item oi
+        JOIN `order` o ON oi.order_id = o.id
+        LEFT JOIN product p ON oi.product_id = p.id
+        WHERE o.order_status != 'CANCELLED'
+        <if test="startDate != null and startDate != ''">AND o.order_date &gt;= #{startDate}</if>
+        <if test="endDate != null and endDate != ''">AND o.order_date &lt;= #{endDate}</if>
+        GROUP BY p.category
+        ORDER BY totalAmount DESC
+    </select>
+
+    <!-- 订单状态分布 -->
+    <select id="selectOrderStatusDistribution" resultType="map">
+        SELECT
+            order_status AS status,
+            COUNT(*) AS count
+        FROM `order`
+        <where>
+            <if test="startDate != null and startDate != ''">AND order_date &gt;= #{startDate}</if>
+            <if test="endDate != null and endDate != ''">AND order_date &lt;= #{endDate}</if>
+        </where>
+        GROUP BY order_status
+    </select>
+
+    <!-- AI 助手：低库存商品（库存小于阈值） -->
+    <select id="selectLowStockProducts" resultType="map">
+        SELECT
+            product_name AS productName,
+            stock_quantity AS stockQuantity
+        FROM product
+        WHERE status = 1 AND stock_quantity &lt; #{threshold}
+        ORDER BY stock_quantity ASC
+    </select>
+
+    <!-- AI 助手：最近 N 笔订单（含客户名、金额、状态、日期） -->
+    <select id="selectRecentOrders" resultType="map">
+        SELECT
+            order_no AS orderNo,
+            customer_name AS customerName,
+            total_amount AS totalAmount,
+            order_status AS orderStatus,
+            order_date AS orderDate
+        FROM `order`
+        ORDER BY create_time DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- AI 助手：各状态商品数量统计 -->
+    <select id="selectProductStatusCount" resultType="map">
+        SELECT
+            COALESCE(SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END), 0) AS activeProducts,
+            COALESCE(SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END), 0) AS inactiveProducts
+        FROM product
+    </select>
+
+    <!-- AI 助手：最近新增客户 -->
+    <select id="selectRecentCustomers" resultType="map">
+        SELECT
+            customer_name AS customerName,
+            phone,
+            create_time AS createTime
+        FROM customer
+        ORDER BY create_time DESC
+        LIMIT #{limit}
+    </select>
+
+</mapper>

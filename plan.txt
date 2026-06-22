@@ -1,0 +1,174 @@
+商品销售管理系统 — 开发计划
+Context
+基于 prompt.txt 的需求，从零构建一个商品销售管理系统。项目目录当前为空，需要完整搭建前后端工程、数据库、所有业务模块。
+
+技术栈：Vue 3 + Element Plus | Spring Boot 3.2 | MySQL 8.0 | MyBatis-Plus | Spring Security + JWT | Swagger/SpringDoc
+
+功能模块：用户管理、商品管理（含图片上传）、客户管理（自动编号）、订单管理、销售统计图表
+
+1. 项目结构
+ProductSell-system/
+├── sql/init.sql                    # 数据库初始化脚本
+├── backend/                        # Spring Boot 后端
+│   ├── pom.xml
+│   └── src/main/java/com/productsell/
+│       ├── ProductSellApplication.java
+│       ├── config/                  # SecurityConfig, SwaggerConfig, MyBatisPlusConfig, CorsConfig, WebMvcConfig
+│       ├── controller/             # AuthController, UserController, ProductController, CustomerController, OrderController, StatisticsController
+│       ├── service/                # 接口 + impl/
+│       ├── mapper/                 # MyBatis-Plus Mapper 接口 + XML
+│       ├── entity/                 # User, Product, Customer, Order, OrderItem
+│       ├── dto/                    # LoginDto, PageResult, ProductQueryDto, OrderCreateDto 等
+│       ├── security/               # JwtAuthenticationFilter, JwtTokenProvider, UserDetailsServiceImpl, SecurityUtils
+│       ├── common/                 # Result, ResultCode, BusinessException, GlobalExceptionHandler
+│       └── utils/                  # CodeGenerator, FileUploadUtils
+├── frontend/                       # Vue 3 前端
+│   ├── package.json, vite.config.js
+│   └── src/
+│       ├── main.js, App.vue
+│       ├── router/index.js
+│       ├── api/                    # request.js(axios实例), auth.js, user.js, product.js, customer.js, order.js, statistics.js
+│       ├── store/                  # user.js(token/用户信息), app.js(侧边栏状态)
+│       ├── views/                  # LoginView, DashboardView, user/UserManageView, product/ProductManageView, ...
+│       ├── components/             # layout/(MainLayout,SidebarMenu,HeaderBar), product/ProductFormDialog, order/OrderFormDialog, common/ImageUpload
+│       └── assets/styles/
+└── uploads/products/               # 商品图片上传目录（运行时创建）
+2. 数据库设计（5 张表）
+sys_user（系统用户）
+字段	类型	说明
+id	BIGINT PK AUTO_INCREMENT	主键
+username	VARCHAR(50) UNIQUE	登录用户名
+password	VARCHAR(255)	BCrypt 加密密码
+real_name	VARCHAR(50)	真实姓名
+phone	VARCHAR(20)	电话
+email	VARCHAR(100)	邮箱
+role	VARCHAR(20)	角色: ADMIN/USER
+status	TINYINT	1-启用 0-禁用
+create_time/update_time	DATETIME	时间戳
+product（商品）
+字段	类型	说明
+id	BIGINT PK	主键
+product_code	VARCHAR(50) UNIQUE	商品编号(CP+日期+序号)
+product_name	VARCHAR(200)	商品名称
+category	VARCHAR(50)	分类
+brand	VARCHAR(100)	品牌
+specification	VARCHAR(200)	规格型号
+unit	VARCHAR(20)	单位
+price	DECIMAL(10,2)	售价
+cost_price	DECIMAL(10,2)	成本价
+stock_quantity	INT	库存数量
+description	TEXT	描述
+image_url	VARCHAR(500)	商品图片路径
+status	TINYINT	1-在售 0-停售
+customer（客户）
+字段	类型	说明
+id	BIGINT PK	主键
+customer_code	VARCHAR(50) UNIQUE	客户编号(KH+日期+序号, 自动生成)
+customer_name	VARCHAR(200)	客户名称
+contact_person	VARCHAR(50)	联系人
+phone/email/address	-	联系信息
+remark	TEXT	备注
+order（订单）
+字段	类型	说明
+id	BIGINT PK	主键
+order_no	VARCHAR(50) UNIQUE	订单号(DD+日期+序号)
+customer_id	BIGINT FK	客户ID
+total_amount	DECIMAL(12,2)	订单总金额
+order_status	VARCHAR(20)	PENDING/SHIPPED/COMPLETED/CANCELLED
+order_date	DATETIME	下单日期
+order_item（订单明细）
+字段	类型	说明
+id	BIGINT PK	主键
+order_id/order_no	FK+冗余	订单关联
+product_id/product_name/product_price	FK+快照	商品关联(快照价格)
+quantity	INT	数量
+subtotal	DECIMAL(12,2)	小计
+初始数据：插入一个 admin 账号（用户名: admin, 密码: admin123, 角色: ADMIN）
+
+3. 后端架构要点
+关键依赖
+Spring Boot 3.2.x | MyBatis-Plus 3.5.6 | jjwt 0.12.5 | SpringDoc 2.5.0 | Hutool 5.8 | Lombok
+
+统一响应
+Result<T> 包装器：{ code, message, data }，配合 GlobalExceptionHandler 统一异常处理。
+
+API 端点（RESTful）
+认证: POST /api/auth/login, GET /api/auth/userinfo
+用户: GET/POST /api/users, GET/PUT/DELETE /api/users/{id}
+商品: 同上 + POST /api/products/upload-image（图片上传）
+客户: 同上（创建时自动生成 customer_code）
+订单: 同上 + PUT /api/orders/{id}/status（状态变更）
+统计: GET /api/statistics/overview|sales-trend|top-products|category-sales|order-status
+安全认证（Spring Security + JWT）
+SecurityConfig: 禁用 CSRF，无状态 Session，放行 /api/auth/login、Swagger、上传文件路径
+JwtAuthenticationFilter: 从 Authorization: Bearer <token> 解析 JWT，设置 SecurityContext
+JwtTokenProvider: 生成/验证/解析 Token，24 小时有效期
+BCryptPasswordEncoder 加密密码
+编号自动生成
+CodeGenerator 工具类：格式为 前缀 + yyyyMMdd + 3位序号，查询当天最大编号后递增，synchronized 保证线程安全。客户: KH，商品: CP，订单: DD。
+
+订单创建（核心业务）
+@Transactional：插入 order → 生成订单号 → 遍历 order_items 计算 subtotal → 汇总 total_amount → 批量插入 item → 更新 order 总金额。商品名称/价格以快照方式存入 order_item。
+
+统计图表
+StatisticsMapper.xml 手写 SQL 聚合查询，支持可选 startDate/endDate 参数。
+
+4. 前端架构要点
+关键依赖
+Vue 3.4 | Vue Router 4 | Pinia | Element Plus 2.7 | Axios | ECharts 5 + vue-echarts 6
+
+路由设计
+/login → LoginView
+/ → MainLayout (需认证)
+  ├── /dashboard → DashboardView（概览卡片）
+  ├── /users → UserManageView（仅 ADMIN）
+  ├── /products → ProductManageView
+  ├── /customers → CustomerManageView
+  ├── /orders → OrderManageView
+  └── /statistics → StatisticsView（图表）
+路由守卫：未登录跳 /login，已登录访问 /login 跳 /dashboard，角色权限校验。
+
+Axios 封装
+请求拦截器：自动附加 Authorization: Bearer <token>
+响应拦截器：统一错误提示（ElMessage），401 清 token 跳登录，自动解包 Result 数据
+布局
+MainLayout = HeaderBar（Logo + 面包屑 + 用户下拉） + SidebarMenu（el-menu 可折叠） + 主内容区（router-view + keep-alive）
+
+页面模式（通用 CRUD 页面）
+搜索栏 → 操作按钮 → el-table → el-pagination → el-dialog（表单/详情）
+
+统计页面
+4 个概览卡片 + 日期范围筛选 + 折线图（销售趋势）+ 柱状图（热销商品 Top10）+ 饼图（分类销售 + 订单状态分布）
+
+订单管理（最复杂页面）
+创建/编辑订单对话框：客户选择 → 动态商品明细表（添加行、选商品、填数量、自动计算小计和总额）→ 提交。状态流转管理。
+
+5. 实施阶段（共 10 个阶段）
+阶段	内容	预估
+Phase 1	项目初始化：创建数据库 + 初始化 Spring Boot + Vite 工程	2-3h
+Phase 2	后端基础设施：Result、异常处理、MyBatis-Plus 分页、CORS、Swagger、静态资源配置	3-4h
+Phase 3	后端安全：JWT 工具类、认证过滤器、SecurityConfig、登录接口	3-4h
+Phase 4	后端业务模块：User/Product/Customer/Order 的 Entity→Mapper→Service→Controller	4-5h
+Phase 5	后端统计模块：StatisticsMapper XML SQL、统计接口	2-3h
+Phase 6	前端基础设施：路由、Axios 封装、Pinia Store、全局样式、Element Plus 注册	3-4h
+Phase 7	前端布局：MainLayout + SidebarMenu + HeaderBar + ImageUpload 组件	2-3h
+Phase 8	登录页 + 首页仪表盘	2-3h
+Phase 9	前端业务页面：User/Product/Customer/Order/Statistics 全部视图	8-10h
+Phase 10	完善注释、Swagger 文档注解、错误处理、Loading 状态、联调测试	3-4h
+6. 关键文件清单（按重要性排序）
+sql/init.sql — 数据库基础
+backend/.../security/JwtAuthenticationFilter.java — 安全核心
+backend/.../service/impl/OrderServiceImpl.java — 最复杂业务逻辑
+frontend/src/api/request.js — 前后端通信枢纽
+frontend/src/views/order/OrderManageView.vue — 最复杂前端页面
+backend/.../common/GlobalExceptionHandler.java — 统一异常处理
+frontend/src/router/index.js — 路由守卫
+backend/.../utils/CodeGenerator.java — 编号生成
+7. 验证方案
+启动验证：后端启动后访问 http://localhost:8080/swagger-ui.html 确认 Swagger 可用；前端 npm run dev 确认页面加载
+认证测试：POST /api/auth/login 获取 Token，携带 Token 访问受保护接口
+CRUD 测试：通过 Swagger 逐个测试各模块的增删改查、分页、条件查询
+图片上传：上传商品图片，确认文件保存到 uploads/ 目录，URL 可访问
+订单流程：创建客户 → 创建商品 → 创建订单（含明细）→ 修改状态 → 验证金额计算
+统计图表：录入测试订单数据后，访问统计页面，确认图表数据正确渲染
+前端交互：测试登录守卫、401 自动跳转、表单验证、删除确认、分页切换、Loading 状态

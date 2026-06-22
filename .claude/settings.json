@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "Bash(mvn spring-boot:run)",
+      "Bash(sleep 15 && cat \"/c/Users/KniSuly/AppData/Local/Temp/claude/d--ZSTU-----Web-----ProductSell-system/ff212715-8ac3-40c3-b099-3aae9e313c70/tasks/bfu56tjca.output\" 2>&1 | tail -50)",
+      "Read(//c/Users/KniSuly/AppData/Local/Temp/claude/d--ZSTU-----Web-----ProductSell-system/ff212715-8ac3-40c3-b099-3aae9e313c70/tasks/**)"
+    ]
+  }
+}

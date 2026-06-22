@@ -1,0 +1,26 @@
+# ========== 构建产物 ==========
+backend/target/
+frontend/dist/
+frontend/node_modules/
+
+# ========== IDE ==========
+.idea/
+*.iml
+.vscode/
+
+# ========== 敏感配置 ==========
+backend/src/main/resources/application-local.yml
+.env
+.env.local
+
+# ========== Claude 本地配置 ==========
+.claude/settings.local.json
+.claude/projects/**/memory/
+
+# ========== 系统文件 ==========
+.DS_Store
+Thumbs.db
+
+# ========== 日志 ==========
+*.log
+logs/
