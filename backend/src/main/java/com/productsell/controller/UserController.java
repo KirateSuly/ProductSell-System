@@ -8,7 +8,6 @@ import com.productsell.common.ResultCode;
 import com.productsell.dto.PageResult;
 import com.productsell.entity.User;
 import com.productsell.service.UserService;
-import com.productsell.utils.PasswordHashUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -100,8 +99,8 @@ public class UserController {
         if (count > 0) {
             throw new BusinessException(ResultCode.USERNAME_EXISTS);
         }
-        // SHA-256 脱敏后再 BCrypt 加密
-        user.setPassword(passwordEncoder.encode(PasswordHashUtil.sha256(user.getPassword())));
+        // 前端已做 SHA-256 脱敏，此处直接 BCrypt 加密（与 AuthController 登录校验保持一致）
+        user.setPassword(passwordEncoder.encode(user.getPassword()));
         userService.save(user);
         user.setPassword(null); // 安全：不返回密码
         return Result.success("创建成功", user);
@@ -125,7 +124,8 @@ public class UserController {
         }
         // 空密码表示不修改
         if (StringUtils.hasText(user.getPassword())) {
-            user.setPassword(passwordEncoder.encode(PasswordHashUtil.sha256(user.getPassword())));
+            // 前端已做 SHA-256 脱敏，此处直接 BCrypt 加密（与 AuthController 登录校验保持一致）
+            user.setPassword(passwordEncoder.encode(user.getPassword()));
         } else {
             user.setPassword(null); // MyBatis-Plus 更新时忽略 null 字段
         }

@@ -31,7 +31,7 @@
 
 **日期**: 2026-06-12
 
-**问题**: git上传到公共仓库，存在apikey明文出现问题，以及后续安全隐患，暴露apikey问题。
+**问题**: git上传到公共仓库，存在apikey明文相关问题，以及后续安全隐患，暴露apikey问题。
 
 **原因**：apikey存在配置文件application.yml中，上传配置容易暴露。
 
@@ -58,3 +58,44 @@
 **涉及文件**:
 
 - [SidebarMenu.vue](frontend/src/components/layout/SidebarMenu.vue) — 修改 `el-menu` 属性和脚本逻辑
+
+## 用户管理 — 界面创建的用户无法登录（双重 SHA-256 Bug）
+
+**日期**: 2026-06-25
+
+**问题**: 在用户管理界面创建用户（如"张三二 / 123456"），登录界面输入正确密码却无法登录。而系统内置的 `admin / admin123` 能正常登录。
+
+**原因**: `UserController` 错误地多调了一层 `PasswordHashUtil.sha256()`，导致密码被 SHA-256 了两次。
+
+完整数据流对比：
+
+```
+登录流程 (AuthController)：
+  用户输入 "123456"
+  → 前端 sha256() → 哈希值 A
+  → 后端 BCrypt.matches(A, DB存储值)  ✅ 正确
+
+admin 创建流程 (DataInitializer)：
+  "admin123"
+  → 后端 sha256() → BCrypt 加密存库  ✅ 一层 SHA-256，能登录
+
+用户界面创建流程 (UserController) — 修复前：
+  管理员输入 "123456"
+  → 前端 sha256() → 哈希值 A
+  → 后端 sha256(A) → 又哈希一次！→ BCrypt 加密存库
+  → DB 存储: BCrypt(SHA256(SHA256("123456")))  ❌ 多了一层！
+```
+
+登录比对时 `BCrypt.matches(SHA256("123456"), BCrypt(SHA256(SHA256("123456"))))` 永远为 false。
+
+**修复**:
+
+1. `UserController.create()` 第 103 行：去掉 `PasswordHashUtil.sha256()`，前端已做过 SHA-256，直接 `passwordEncoder.encode(user.getPassword())`
+2. `UserController.update()` 第 128 行：同上
+3. 移除不再使用的 `import com.productsell.utils.PasswordHashUtil`
+
+**涉及文件**:
+
+- [UserController.java](backend/src/main/java/com/productsell/controller/UserController.java) — 创建用户（第 103 行）和更新用户（第 128 行）的密码处理逻辑
+
+**遗留问题**: 修复前已创建的用户（如张三二），数据库中仍存着双重哈希的密码，需要在用户管理界面重新编辑该用户、重新设置密码才能正常登录。
